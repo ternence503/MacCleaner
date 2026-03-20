@@ -1,0 +1,91 @@
+╔══════════════════════════════════════════════════════╗
+║       MacCleaner v1.0  使用說明 / User Guide         ║
+╚══════════════════════════════════════════════════════╝
+
+【首次設定 / First Time Setup（只需做一次 / One-time only）】
+
+  1. 解壓縮下載的 ZIP 檔案
+     Unzip the downloaded ZIP file
+
+  2. 開啟「終端機 / Terminal」
+     (Cmd + Space，輸入 Terminal，按 Enter)
+
+  3. 在終端機輸入以下指令，讓程式有執行權限：
+     In Terminal, run this command to grant execute permission:
+
+     chmod +x （將「啟動清理工具.command」拖曳到終端機視窗，放開）
+
+     範例 / Example:
+     chmod +x /Users/你的名字/Downloads/MacCleaner-main/啟動清理工具.command
+
+  4. 之後只需雙擊「啟動清理工具.command」即可執行
+     After that, just double-click "啟動清理工具.command" to run
+
+
+【如何使用 / How to Use】
+
+  1. 雙擊「啟動清理工具.command」
+     Double-click "啟動清理工具.command"
+
+  2. 第一次執行時，右鍵點擊 → 選「打開 / Open」→ 再選「打開」
+     First run: right-click → "Open" → "Open" again (to bypass Gatekeeper)
+
+  3. 選 [1] 一鍵全部清理，等待完成即可
+     Choose [1] Full Clean and wait for completion
+
+
+【清理項目說明 / What Gets Cleaned】
+
+  1. 使用者快取   - ~/Library/Caches（可安全清除，App 會自動重建）
+  2. 使用者日誌   - ~/Library/Logs（系統和 App 的日誌記錄）
+  3. 資源回收筒   - 確認後清空（需手動確認）
+  4. 瀏覽器快取   - Chrome / Safari / Firefox / Edge
+  5. App 快取     - Discord / Slack / Zoom / Teams / Spotify / Homebrew
+  6. Xcode 快取   - DerivedData（開發者用，需手動確認）
+  7. .DS_Store    - macOS 自動產生的隱藏設定檔
+  8. 下載暫存檔   - .tmp / .part / .crdownload 等未完成的下載
+
+
+【絕對不會碰 / Will NEVER Touch】
+
+  ✗ 您的文件、圖片、影片、音樂（個人檔案）
+  ✗ LINE 對話、Discord 帳號設定、瀏覽器書籤與密碼
+  ✗ iCloud Drive、Time Machine 備份
+  ✗ 系統核心目錄（/System、/usr、/bin）
+  ✗ 任何資料庫檔案（.db、.sqlite）
+
+
+【支援系統 / Supported Systems】
+
+  ✓ macOS 10.12 Sierra
+  ✓ macOS 10.13 High Sierra
+  ✓ macOS 10.14 Mojave
+  ✓ macOS 10.15 Catalina
+  ✓ macOS 11 Big Sur
+  ✓ macOS 12 Monterey
+  ✓ macOS 13 Ventura
+  ✓ macOS 14 Sonoma
+  ✓ macOS 15 Sequoia
+
+
+【常見問題 / FAQ】
+
+  Q: 「無法打開，因為無法驗證開發者」
+  A: 右鍵點擊 → 打開 → 打開，之後就不會再問了
+
+  Q: "Cannot open because developer cannot be verified"
+  A: Right-click → Open → Open. Won't ask again after first time.
+
+  Q: 清理後 App 第一次開啟比較慢？
+  A: 正常！快取正在重建，只有第一次，之後恢復正常。
+
+  Q: App is slower on first launch after cleaning?
+  A: Normal! Cache is rebuilding. Only happens once.
+
+  Q: 可以定期使用嗎？
+  A: 可以！建議每 1~2 個月清理一次。
+
+  Q: Can I use this regularly?
+  A: Yes! Recommended once every 1-2 months.
+
+══════════════════════════════════════════════════════
