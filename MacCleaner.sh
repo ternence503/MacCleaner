@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# MacCleaner v1.0 - macOS 安全清理工具 / macOS Safe Cleaner
+# MacCleaner v1.1 - macOS 安全清理工具 / macOS Safe Cleaner
 # 支援 macOS 10.12+，以使用者身份執行，無需管理員密碼
 # Supports macOS 10.12+, runs as current user, no sudo needed
 # ============================================================
@@ -148,6 +148,16 @@ show_selective_menu() {
     printf "${WHITE}  [ 6]  Xcode 快取 / Xcode DerivedData${NC}\n"
     printf "${WHITE}  [ 7]  .DS_Store 隱藏檔 / DS_Store Files${NC}\n"
     printf "${WHITE}  [ 8]  下載暫存檔 / Downloads Temp Files${NC}\n"
+    printf "${WHITE}  [ 9]  npm 快取 / npm Cache${NC}\n"
+    printf "${WHITE}  [10]  pip 快取 / pip Cache${NC}\n"
+    printf "${WHITE}  [11]  iOS Device Support (舊版 iOS 符號檔)${NC}\n"
+    printf "${WHITE}  [12]  macOS ._* 隱藏檔 / macOS Resource Forks${NC}\n"
+    printf "${WHITE}  [13]  Simulator 快取 / CoreSimulator Cache${NC}\n"
+    printf "${WHITE}  [14]  iOS 裝置備份 / iOS Device Backups${NC}\n"
+    printf "${WHITE}  [15]  Yarn 快取 / Yarn Cache${NC}\n"
+    printf "${WHITE}  [16]  QuickLook 縮圖快取 / QuickLook Thumbnails${NC}\n"
+    printf "${WHITE}  [17]  Docker 未使用資源 / Docker Unused Resources${NC}\n"
+    printf "${WHITE}  [18]  Mail 附件下載 / Mail Downloads${NC}\n"
     print_c "  +-----------------------------------------------------+" "$CYAN"
     echo ""
     print_c "  輸入編號 (逗號分隔，如: 1,3,5) 或 [A] 全選" "$YELLOW"
@@ -443,6 +453,229 @@ clear_ds_store() {
     fi
 }
 
+clear_npm_cache() {
+    task_start "npm 快取" "npm Cache"
+    local npm_cache="$HOME/.npm"
+    if [ ! -d "$npm_cache" ]; then
+        task_skip "未找到 npm 快取 / npm cache not found"
+        record_result "npm 快取 / npm Cache" 0
+        return
+    fi
+    local freed
+    freed=$(remove_dir_contents "$npm_cache")
+    TOTAL_FREED=$(( TOTAL_FREED + freed ))
+    record_result "npm 快取 / npm Cache" "$freed"
+    task_done "$freed"
+}
+
+clear_pip_cache() {
+    task_start "pip 快取" "pip Cache"
+    local pip_cache="$HOME/Library/Caches/pip"
+    if [ ! -d "$pip_cache" ]; then
+        task_skip "未找到 pip 快取 / pip cache not found"
+        record_result "pip 快取 / pip Cache" 0
+        return
+    fi
+    local freed
+    freed=$(remove_dir_contents "$pip_cache")
+    TOTAL_FREED=$(( TOTAL_FREED + freed ))
+    record_result "pip 快取 / pip Cache" "$freed"
+    task_done "$freed"
+}
+
+clear_ios_device_support() {
+    task_start "iOS Device Support" "iOS Device Support"
+    local ios_support="$HOME/Library/Developer/Xcode/iOS DeviceSupport"
+    if [ ! -d "$ios_support" ]; then
+        task_skip "未找到 iOS DeviceSupport / Not found"
+        record_result "iOS Device Support" 0
+        return
+    fi
+    local size
+    size=$(get_dir_size_bytes "$ios_support")
+    echo ""
+    printf "${YELLOW}  !! iOS Device Support 約 %s，包含各 iOS 版本符號檔${NC}\n" "$(format_bytes "$size")"
+    printf "${YELLOW}     清除後重新連接裝置時會自動重建，確認清除? [Y/N]: ${NC}"
+    read -r confirm
+    case "$confirm" in
+        [Yy]|是)
+            local freed
+            freed=$(remove_dir_contents "$ios_support")
+            TOTAL_FREED=$(( TOTAL_FREED + freed ))
+            record_result "iOS Device Support" "$freed"
+            task_done "$freed"
+            ;;
+        *)
+            task_skip "使用者取消 / Cancelled"
+            record_result "iOS Device Support" 0
+            ;;
+    esac
+}
+
+clear_resource_forks() {
+    task_start "macOS ._* 隱藏檔" "macOS Resource Forks"
+    local freed=0 count=0 size
+
+    while IFS= read -r -d '' f; do
+        size=$(stat -f%z "$f" 2>/dev/null || echo 0)
+        rm -f "$f" 2>/dev/null && {
+            freed=$(( freed + size ))
+            count=$(( count + 1 ))
+        }
+    done < <(find "$HOME" -name "._*" -print0 2>/dev/null)
+
+    TOTAL_FREED=$(( TOTAL_FREED + freed ))
+    record_result "macOS ._* 隱藏檔" "$freed"
+    if [ "$count" -gt 0 ]; then
+        task_done "$freed" "已刪除 $count 個檔案 / Removed $count files"
+    else
+        task_done 0
+    fi
+}
+
+clear_simulator_cache() {
+    task_start "Simulator 快取" "CoreSimulator Cache"
+    local sim_cache="$HOME/Library/Developer/CoreSimulator/Caches"
+    if [ ! -d "$sim_cache" ]; then
+        task_skip "未找到 Simulator 快取 / Not found"
+        record_result "Simulator 快取" 0
+        return
+    fi
+    local freed
+    freed=$(remove_dir_contents "$sim_cache")
+    TOTAL_FREED=$(( TOTAL_FREED + freed ))
+    record_result "Simulator 快取 / CoreSimulator Cache" "$freed"
+    task_done "$freed"
+}
+
+clear_ios_backups() {
+    task_start "iOS 裝置備份" "iOS Device Backups"
+    local backup_dir="$HOME/Library/Application Support/MobileSync/Backup"
+    if [ ! -d "$backup_dir" ]; then
+        task_skip "未找到 iOS 備份 / No iOS backups found"
+        record_result "iOS 裝置備份 / iOS Backups" 0
+        return
+    fi
+
+    local count size
+    count=$(find "$backup_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+    size=$(get_dir_size_bytes "$backup_dir")
+
+    if [ "$count" -eq 0 ]; then
+        task_skip "沒有備份資料 / No backup data"
+        record_result "iOS 裝置備份 / iOS Backups" 0
+        return
+    fi
+
+    echo ""
+    printf "${YELLOW}  !! 發現 %s 個 iOS 裝置備份，共約 %s${NC}\n" "$count" "$(format_bytes "$size")"
+    printf "${RED}  !! 警告：刪除後無法復原，建議先確認 iCloud 有備份或不再需要這些備份${NC}\n"
+    printf "${YELLOW}     確認刪除所有 iOS 備份? [Y/N]: ${NC}"
+    read -r confirm
+    case "$confirm" in
+        [Yy])
+            printf "${RED}  !! 再次確認刪除 %s 個備份? 輸入 YES 確認: ${NC}" "$count"
+            read -r reconfirm
+            if [ "$reconfirm" = "YES" ]; then
+                local freed
+                freed=$(remove_dir_contents "$backup_dir")
+                TOTAL_FREED=$(( TOTAL_FREED + freed ))
+                record_result "iOS 裝置備份 / iOS Backups" "$freed"
+                task_done "$freed"
+            else
+                task_skip "使用者取消 / Cancelled"
+                record_result "iOS 裝置備份 / iOS Backups" 0
+            fi
+            ;;
+        *)
+            task_skip "使用者取消 / Cancelled"
+            record_result "iOS 裝置備份 / iOS Backups" 0
+            ;;
+    esac
+}
+
+clear_yarn_cache() {
+    task_start "Yarn 快取" "Yarn Cache"
+    local yarn_cache=""
+    # yarn v1
+    [ -d "$HOME/.yarn/cache" ] && yarn_cache="$HOME/.yarn/cache"
+    # yarn v2+ / berry
+    [ -z "$yarn_cache" ] && [ -d "$HOME/Library/Caches/yarn" ] && yarn_cache="$HOME/Library/Caches/yarn"
+
+    if [ -z "$yarn_cache" ]; then
+        task_skip "未找到 Yarn 快取 / Yarn cache not found"
+        record_result "Yarn 快取 / Yarn Cache" 0
+        return
+    fi
+    local freed
+    freed=$(remove_dir_contents "$yarn_cache")
+    TOTAL_FREED=$(( TOTAL_FREED + freed ))
+    record_result "Yarn 快取 / Yarn Cache" "$freed"
+    task_done "$freed"
+}
+
+clear_quicklook_cache() {
+    task_start "QuickLook 縮圖快取" "QuickLook Thumbnails"
+    local freed=0
+    local ql1="$HOME/Library/Caches/com.apple.QuickLook.thumbnailcache"
+    local ql2="$HOME/Library/Caches/QuickLook"
+    for dir in "$ql1" "$ql2"; do
+        [ -d "$dir" ] && freed=$(( freed + $(remove_dir_contents "$dir") ))
+    done
+    # 重置 QuickLook daemon（不影響任何資料，只清縮圖）
+    qlmanage -r cache &>/dev/null || true
+    TOTAL_FREED=$(( TOTAL_FREED + freed ))
+    record_result "QuickLook 縮圖快取" "$freed"
+    task_done "$freed"
+}
+
+clear_docker() {
+    task_start "Docker 未使用資源" "Docker Unused Resources"
+    if ! command -v docker &>/dev/null; then
+        task_skip "未安裝 Docker / Docker not found"
+        record_result "Docker" 0
+        return
+    fi
+    if ! docker info &>/dev/null 2>&1; then
+        task_skip "Docker 未執行，請先啟動 Docker / Docker not running"
+        record_result "Docker" 0
+        return
+    fi
+    echo ""
+    printf "${YELLOW}  !! 將執行 docker system prune（清除停止的容器、未使用的網路與懸空 image）${NC}\n"
+    printf "${YELLOW}     不會刪除正在使用的 image 或 volume，確認? [Y/N]: ${NC}"
+    read -r confirm
+    case "$confirm" in
+        [Yy])
+            local before after freed_bytes
+            before=$(docker system df --format '{{.Size}}' 2>/dev/null | head -1 || echo "0B")
+            docker system prune -f &>/dev/null
+            echo ""
+            task_done 0 "Docker prune 完成 / Docker prune done"
+            record_result "Docker 未使用資源" 0
+            ;;
+        *)
+            task_skip "使用者取消 / Cancelled"
+            record_result "Docker" 0
+            ;;
+    esac
+}
+
+clear_mail_downloads() {
+    task_start "Mail 附件下載" "Mail Downloads"
+    local mail_dl="$HOME/Library/Mail Downloads"
+    if [ ! -d "$mail_dl" ]; then
+        task_skip "未找到 Mail 附件快取 / Not found"
+        record_result "Mail 附件下載 / Mail Downloads" 0
+        return
+    fi
+    local freed
+    freed=$(remove_dir_contents "$mail_dl")
+    TOTAL_FREED=$(( TOTAL_FREED + freed ))
+    record_result "Mail 附件下載 / Mail Downloads" "$freed"
+    task_done "$freed"
+}
+
 clear_downloads_temp() {
     task_start "下載暫存檔" "Downloads Temp Files"
     local dl="$HOME/Downloads"
@@ -482,6 +715,16 @@ run_task() {
         6) clear_xcode ;;
         7) clear_ds_store ;;
         8) clear_downloads_temp ;;
+        9) clear_npm_cache ;;
+        10) clear_pip_cache ;;
+        11) clear_ios_device_support ;;
+        12) clear_resource_forks ;;
+        13) clear_simulator_cache ;;
+        14) clear_ios_backups ;;
+        15) clear_yarn_cache ;;
+        16) clear_quicklook_cache ;;
+        17) clear_docker ;;
+        18) clear_mail_downloads ;;
     esac
 }
 
@@ -491,7 +734,7 @@ invoke_full_clean() {
     print_c "  ─────────────────────────────────────────────────────" "$GRAY"
     echo ""
 
-    for i in 1 2 4 5 7 8; do
+    for i in 1 2 4 5 7 8 9 10 12 15 16 18; do
         run_task $i
     done
 
@@ -514,6 +757,50 @@ invoke_full_clean() {
         printf "${YELLOW}  偵測到 Xcode DerivedData (%s)，是否清除? [Y/N]: ${NC}" "$(format_bytes "$xsize")"
         read -r ans
         case "$ans" in [Yy]|是) run_task 6 ;; esac
+    fi
+
+    # iOS 備份 — 偵測到才詢問（需二次確認）
+    local ios_backup="$HOME/Library/Application Support/MobileSync/Backup"
+    if [ -d "$ios_backup" ]; then
+        local bcount bsize
+        bcount=$(find "$ios_backup" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$bcount" -gt 0 ]; then
+            bsize=$(get_dir_size_bytes "$ios_backup")
+            echo ""
+            printf "${YELLOW}  偵測到 %s 個 iOS 裝置備份 (%s)，是否清除? [Y/N]: ${NC}" "$bcount" "$(format_bytes "$bsize")"
+            read -r ans
+            case "$ans" in [Yy]|是) run_task 14 ;; esac
+        fi
+    fi
+
+    # Docker — 偵測到才詢問
+    if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+        echo ""
+        printf "${YELLOW}  偵測到 Docker 正在執行，是否清除未使用資源? [Y/N]: ${NC}"
+        read -r ans
+        case "$ans" in [Yy]|是) run_task 17 ;; esac
+    fi
+
+    # iOS Device Support — 偵測到才詢問
+    local ios_support="$HOME/Library/Developer/Xcode/iOS DeviceSupport"
+    if [ -d "$ios_support" ]; then
+        echo ""
+        local isize
+        isize=$(get_dir_size_bytes "$ios_support")
+        printf "${YELLOW}  偵測到 iOS Device Support (%s)，是否清除? [Y/N]: ${NC}" "$(format_bytes "$isize")"
+        read -r ans
+        case "$ans" in [Yy]|是) run_task 11 ;; esac
+    fi
+
+    # Simulator Cache — 偵測到才詢問
+    local sim_cache="$HOME/Library/Developer/CoreSimulator/Caches"
+    if [ -d "$sim_cache" ]; then
+        echo ""
+        local ssize
+        ssize=$(get_dir_size_bytes "$sim_cache")
+        printf "${YELLOW}  偵測到 Simulator 快取 (%s)，是否清除? [Y/N]: ${NC}" "$(format_bytes "$ssize")"
+        read -r ans
+        case "$ans" in [Yy]|是) run_task 13 ;; esac
     fi
 
     show_summary
